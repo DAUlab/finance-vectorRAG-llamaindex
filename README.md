@@ -12,6 +12,6 @@ To run properly the docker need to have a GROQ API key in the environment variab
 ```bash
 
 docker build -t finance-vector-rag-llamaindex .
-docker run -p 5000:5000 -e GROQ_KEY=<your_groq_key> finance-vector-rag-llamaindex
+docker run -it -p 5000:5000 -e GROQ_KEY=<your_groq_key> finance-vector-rag-llamaindex
 
 ```
