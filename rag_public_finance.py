@@ -53,20 +53,23 @@ In addition, the report highlights the importance of international cooperation, 
 1. Fiscal policy should prioritize innovation, productivity growth, and fairness to address inflation.
 2. Implementing fiscal policies that reduce deficits, promote innovation, and enhance tax capacity is crucial.
 3. Structural reforms and international cooperation are essential to address the root causes of inflation.
-
-**References**
-
-* Fiscal Monitor (April 2024)
-* Benitez and others (2023)
-* IMF (2023b)
 """
 
 # Select a model from Groq API: "llama3-70b-8192" "llama3-8b-8192" "mixtral-8x7b-32768" "Gemma-7b-it"
-model = "llama3-8b-8192"
-llm = Groq(
-    model=model,
-    api_key=os.environ.get("GROQ_KEY"),
-    temperature=0.8,
+#model = "llama3-8b-8192"
+#llm = Groq(
+#    model=model,
+#    api_key=os.environ.get("GROQ_KEY"),
+#    temperature=0.8,
+#    system_prompt=prompt,
+#)
+
+from llama_index.llms.azure_openai import AzureOpenAI
+
+llm = AzureOpenAI(
+    model='gpt-4o',
+    engine='gpt4o',
+    temperature=0.4,
     system_prompt=prompt,
 )
 print("LLM loaded successfully")
@@ -74,15 +77,21 @@ print("LLM loaded successfully")
 
 """Embedding model"""
 
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+#from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 
 # Load the embedding model
-embed_model = HuggingFaceEmbedding(
-    model_name="BAAI/bge-base-en-v1.5", 
-    device="cuda" if torch.cuda.is_available() else "cpu",
-    trust_remote_code=True,
-    cache_folder="cache",
+#embed_model = HuggingFaceEmbedding(
+#    model_name="BAAI/bge-base-en-v1.5", 
+#    device="cpu",
+#    trust_remote_code=True,
+#    cache_folder="cache",
+#)
+embed_model = AzureOpenAIEmbedding(
+    model='text-embedding-3-large',
+    deployment_name='embedding-3-large',
 )
+print("Embedding model loaded successfully")
 
 
 """RAG Settings"""
@@ -94,8 +103,9 @@ from llama_index.core.node_parser import SentenceSplitter, SemanticSplitterNodeP
 client = Groq_API(api_key=os.environ.get('GROQ_KEY'))
 
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, StorageContext, load_index_from_storage, get_response_synthesizer
-from llama_index.core.retrievers import VectorIndexRetriever
+from llama_index.core.postprocessor import SimilarityPostprocessor
 from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.core.retrievers import VectorIndexRetriever
 
 
 """ Vector Database """
@@ -107,10 +117,7 @@ class VectorDatabase:
         # Llama-index settings
         Settings.llm = llm
         Settings.embed_model = embed_model
-        Settings.node_parser = SentenceSplitter(
-            chunk_size=2048,
-            chunk_overlap=256,
-        )
+        Settings.node_parser = SemanticSplitterNodeParser(embed_model=embed_model)
         Settings.num_output = 256
         Settings.context_window = 4096 # Maximum size of the input query
         self.settings = Settings
@@ -144,9 +151,9 @@ class RAG:
         self.vector_database = vector_database
         # Configure retriever
         retriever = VectorIndexRetriever(
-            index=vector_database.index,
-            similarity_top_k=5,
-            verbose=False,
+            index=self.vector_database.index,
+            similarity_top_k=10,
+            num_output=256,
         )
         # Configure response synthesizer
         response_synthesizer = get_response_synthesizer(
@@ -156,6 +163,7 @@ class RAG:
         self.query_engine = RetrieverQueryEngine(
             retriever=retriever,
             response_synthesizer=response_synthesizer,
+            node_postprocessors=[SimilarityPostprocessor()],
         )
         # Memory of the chatbot
         self.chat_history = chat_history
@@ -183,6 +191,7 @@ class RAG:
         final_query = "======\nConversation history: " + self.chat_history + "\n======\n\n" + "User question:" + query + "\n\nAssistant: "
         raw_response = self.query_engine.query(final_query)
         response = markdown.markdown(str(raw_response))
+        print("\nContext:", raw_response.source_nodes[0].get_text(), '\n\n')
         self.chat_history += "\n\nUser:" + query
         self.chat_history += "\n\nAssistant:" + str(raw_response)
         self.summarize()
