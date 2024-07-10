@@ -77,20 +77,20 @@ print("LLM loaded successfully")
 
 """Embedding model"""
 
-#from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+#from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 
 # Load the embedding model
-#embed_model = HuggingFaceEmbedding(
-#    model_name="BAAI/bge-base-en-v1.5", 
-#    device="cpu",
-#    trust_remote_code=True,
-#    cache_folder="cache",
-#)
-embed_model = AzureOpenAIEmbedding(
-    model='text-embedding-3-large',
-    deployment_name='embedding-3-large',
+embed_model = HuggingFaceEmbedding(
+    model_name="BAAI/bge-base-en-v1.5", 
+    device="cpu",
+    trust_remote_code=True,
+    cache_folder="cache",
 )
+#embed_model = AzureOpenAIEmbedding(
+#    model='text-embedding-3-large',
+#    deployment_name='embedding-3-large',
+#)
 print("Embedding model loaded successfully")
 
 
@@ -191,7 +191,6 @@ class RAG:
         final_query = "======\nConversation history: " + self.chat_history + "\n======\n\n" + "User question:" + query + "\n\nAssistant: "
         raw_response = self.query_engine.query(final_query)
         response = markdown.markdown(str(raw_response))
-        print("\nContext:", raw_response.source_nodes[0].get_text(), '\n\n')
         self.chat_history += "\n\nUser:" + query
         self.chat_history += "\n\nAssistant:" + str(raw_response)
         self.summarize()
