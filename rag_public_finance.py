@@ -55,21 +55,11 @@ In addition, the report highlights the importance of international cooperation, 
 3. Structural reforms and international cooperation are essential to address the root causes of inflation.
 """
 
-# Select a model from Groq API: "llama3-70b-8192" "llama3-8b-8192" "mixtral-8x7b-32768" "Gemma-7b-it"
-#model = "llama3-8b-8192"
-#llm = Groq(
-#    model=model,
-#    api_key=os.environ.get("GROQ_KEY"),
-#    temperature=0.8,
-#    system_prompt=prompt,
-#)
-
-from llama_index.llms.azure_openai import AzureOpenAI
-
-llm = AzureOpenAI(
-    model='gpt-4o',
-    engine='gpt4o',
-    temperature=0.4,
+# Select a model from Groq API: "llama3-70b-8192" "llama3-8b-8192" "mixtral-8x7b-32768" "gemma-7b-it" "gemma2-9b-it"
+model = "llama3-70b-8192"
+llm = Groq(
+    model=model,
+    temperature=0.8,
     system_prompt=prompt,
 )
 print("LLM loaded successfully")
@@ -78,7 +68,6 @@ print("LLM loaded successfully")
 """Embedding model"""
 
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-#from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 
 # Load the embedding model
 embed_model = HuggingFaceEmbedding(
@@ -87,10 +76,6 @@ embed_model = HuggingFaceEmbedding(
     trust_remote_code=True,
     cache_folder="cache",
 )
-#embed_model = AzureOpenAIEmbedding(
-#    model='text-embedding-3-large',
-#    deployment_name='embedding-3-large',
-#)
 print("Embedding model loaded successfully")
 
 
@@ -113,7 +98,7 @@ from llama_index.core.retrievers import VectorIndexRetriever
 # Cector database class to store the index
 class VectorDatabase:
     # Intialize the vector database from the existing index
-    def __init__(self):
+    def __init__(self, llm=llm):
         # Llama-index settings
         Settings.llm = llm
         Settings.embed_model = embed_model
@@ -154,18 +139,17 @@ class RAG:
         # Configure retriever
         retriever = VectorIndexRetriever(
             index=self.vector_database.index,
-            similarity_top_k=10,
-            num_output=256,
+            similarity_top_k=5,
         )
         # Configure response synthesizer
         response_synthesizer = get_response_synthesizer(
-            response_mode="refine",
+            response_mode="tree_summarize",
         )
         # Assemble query engine
         self.query_engine = RetrieverQueryEngine(
             retriever=retriever,
             response_synthesizer=response_synthesizer,
-            node_postprocessors=[SimilarityPostprocessor()],
+            #node_postprocessors=[SimilarityPostprocessor()],
         )
         # Memory of the chatbot
         self.chat_history = chat_history
@@ -175,7 +159,7 @@ class RAG:
     
     # Switching model
     def switch_model(self, model):
-        self.vector_database.__init__(llm=Groq(model=model, api_key=os.environ.get('GROQ_KEY')))
+        self.vector_database.__init__(llm=Groq(model=model, temperature=0.8, system_prompt=prompt))
         self.__init__(self.vector_database, self.chat_history, self.messages)
         print("Switched to", self.vector_database.settings.llm.model)
 
