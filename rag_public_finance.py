@@ -117,7 +117,9 @@ class VectorDatabase:
         # Llama-index settings
         Settings.llm = llm
         Settings.embed_model = embed_model
-        Settings.node_parser = SemanticSplitterNodeParser(embed_model=embed_model)
+        Settings.node_parser = SentenceSplitter(
+            chunk_size=1024,
+        )
         Settings.num_output = 256
         Settings.context_window = 4096 # Maximum size of the input query
         self.settings = Settings
